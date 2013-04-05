@@ -1,0 +1,121 @@
+<project name="suncertify" default="create-submission-jar" basedir=".">  
+  
+    <property name="your.name" value="" description="Ryan Small" />
+    <property name="proxy.host" value="" description="the host name of the proxy server (if applicable)" />  
+    <property name="proxy.port" value="" description="the port number of the proxy server (default value = 80) (if applicable)" />  
+
+    <property name="dir.output" value="output" description="the directory containing all generated files" />  
+    <property name="dir.source" value="code" description="the source directory" />  
+    <property name="dir.test" value="" description="the source directory of the test files" />  
+    <property name="dir.temp" value="${dir.output}/temp" description="the directory containing temporary files" />  
+    <property name="dir.temp.assignment" value="${dir.temp}/assignment" description="the directory with the extracted files from assignment jar" />  
+    <property name="dir.temp.classes" value="${dir.temp}/classes" description="the directory with the compiled source files" />  
+    <property name="dir.temp.submission" value="${dir.temp}/submission" description="the directory with the extracted files from the created submission jar" />  
+    <property name="dir.temp.test" value="${dir.temp}/test" description="the directory with the compiled test files" />  
+    <property name="dir.submission" value="${dir.output}/submission" description="the directory containing all files for submission" />  
+    <property name="dir.submission.code" value="${dir.submission}/code" description="the required directory code (in the submission jar)" />  
+    <property name="dir.submission.docs" value="${dir.submission}/docs" description="the required directory docs (in the submission jar)" />  
+    <property name="dir.submission.javadoc" value="${dir.submission.docs}/javadoc" description="the required directory javadoc (in the submission jar) with the Javadoc/HTML files" />  
+  
+    <property name="file.choices" value="choices.txt" description="the required file choices.txt" />  
+    <property name="file.db" value="${dir.temp.assignment}/db-1x1.db" description="the required original, unchanged database file" />  
+    <property name="file.instructions" value="${dir.temp.assignment}/instructions.html" description="the required file instructions.html" />  
+    <property name="file.userguide" value="userguide.txt" description="the required file userguide.txt" />  
+    <property name="file.version" value="version.txt" description="the required file version.txt" />  
+  
+    <property name="jar.assignment" value="assignment.jar" description="the assignment jar file (used to copy instructions and database file)" />  
+    <property name="jar.executable" value="${dir.submission}/runme.jar" description="the executable jar file" />  
+    <property name="jar.executable.main.class" value="suncertify.urlybird.ApplicationRunner" description="the full qualified name of the main class" />  
+    <property name="jar.submission" value="rsmall.jar" description="the submission jar file" />  
+  
+    <property name="javadoc.title" value="URLyBird" description="the title of the generated overview page" />  
+  
+    <target name="clean" description="delete all generated files">
+        <delete file="${jar.submission}" failonerror="true" />  
+        <delete dir="${dir.output}" failonerror="true" />
+    	<delete dir="build" failonerror="true" />
+    </target>  
+  
+    <target name="prepare" depends="clean" description="creates all necessary directories">  
+        <mkdir dir="${dir.temp.assignment}" />  
+        <mkdir dir="${dir.temp.classes}" />  
+        <mkdir dir="${dir.temp.submission}" />  
+        <mkdir dir="${dir.temp.test}" />  
+        <mkdir dir="${dir.submission.code}" />  
+        <mkdir dir="${dir.submission.docs}" />  
+        <mkdir dir="${dir.submission.javadoc}" />  
+    </target>  
+  
+   <target name="javadoc" depends="prepare" description="create the javadoc for the source files">  
+        <javadoc sourcepath="${dir.source}"   
+                 destdir="${dir.submission.javadoc}"   
+                 access="package"   
+                 doctitle="${javadoc.title}"   
+                 overview="${dir.source}/overview.html"   
+                 failonerror="true"   
+                 classpath="."   
+                 nodeprecated="false"   
+                 nodeprecatedlist="false"   
+                 noindex="false"   
+                 nonavbar="false"   
+                 notree="false"  
+                 splitindex="true"   
+                 author="true"   
+                 use="true"   
+                 version="true">  
+            <arg value="-J-Dhttp.proxyHost=${proxy.host}" />  
+            <arg value="-J-Dhttp.proxyPort=${proxy.port}" />  
+            <link href="http://java.sun.com/javase/6/docs/api/" />  
+        </javadoc>  
+    </target>  
+  
+    <target name="create-executable-jar" depends="prepare" description="create the executable jar"> 
+ 
+        <!-- compile the source files -->  
+        <javac srcdir="${dir.source}" destdir="${dir.temp.classes}" listfiles="true" failonerror="true" /> 
+ 
+        <!-- compile stubs and skeletons (using rmic) -->  
+        <rmic base="${dir.temp.classes}" verify="true" debug="true" />  
+
+        <!-- jar all classes -->  
+        <jar destfile="${jar.executable}" basedir="${dir.temp.classes}">  
+            <manifest>  
+                <attribute name="Built-By" value="${your.name}" />  
+                <attribute name="Main-Class" value="${jar.executable.main.class}" />  
+                <attribute name="Class-Path" value="." />  
+            </manifest>  
+        </jar>  
+
+    </target>  
+  
+    <target name="create-submission-jar" depends="create-executable-jar, javadoc" description="create the submission jar file"> 
+ 
+        <!-- unjar assignment jar -->
+    	<unjar src="${jar.assignment}" dest="${dir.temp.assignment}" />
+
+        <!-- copy the source files -->  
+        <copy todir="${dir.submission.code}" failonerror="true">  
+            <fileset dir="${dir.source}" />  
+        </copy>
+
+        <!-- copy the required files to their appropriate directory -->  
+        <copy todir="${dir.submission}" failonerror="true">  
+            <fileset file="${file.db}" />  
+            <fileset file="${file.version}" />  
+        </copy>  
+        <copy todir="${dir.submission.docs}" failonerror="true">  
+            <fileset file="${file.choices}" />  
+            <fileset file="${file.instructions}" />  
+            <fileset file="${file.userguide}" />  
+        </copy>
+
+        <!-- jar all these files -->  
+        <jar destfile="${jar.submission}" basedir="${dir.submission}">  
+            <manifest>  
+                <attribute name="Built-By" value="${your.name}" />  
+            </manifest>  
+        </jar>
+
+    </target>  
+  
+</project>  

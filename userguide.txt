@@ -1,0 +1,102 @@
+
+OVERVIEW:
+  The URLyBird application helps hotels to fill rooms that would otherwise be 
+  left empty. Users are able to search and book hotel rooms for travellers.
+  
+  This application supports two different modes. The first mode offers support
+  for connecting to the database directly. This is known as 'Standalone' mode.
+  This mode should be used when only a single client will be accessing the 
+  database locally. The second mode is networked mode. In networked mode access
+  to the database is done remotely over the network. There are two components 
+  needed in order to support networked mode, a single server and one or more
+  clients. The clients will connect to the server and the server will modify
+  the database as needed. Configurations for each mode are persisted between
+  sessions.
+    
+DATABASE:
+  The application is supported by a database file that contains all of the hotel
+  room data. This database file must be specified when the application starts in
+  'Server' mode or 'Standalone' mode and any changes made to the data are saved 
+  back to the same database file. This file must contain a header section and a 
+  data section. The header section must be exactly 73 bytes long. The data in 
+  the header is ignored and therefor irrelevant. The data section is broken down 
+  into records that are repeated until the end of the file.
+   
+  All information stored in the record section is based on a fixed length width
+  with no separators in between the records or the record's fields. Each record 
+  has a specific number of bytes allocated to each field as follows (note that a
+  field may be right-padded with spaces in order to ensure that it has the exact
+  number of bytes):
+    > 1 byte: Deleted flag (0 = valid record and 1 = deleted record)
+    > 64 bytes: Name of the hotel
+    > 64 bytes: Name of the city the hotel is located in
+    > 4 bytes: Maximum occupancy of the hotel room
+    > 1 byte: Smoking flag (Y = smoking room and N = non-smoking room)
+    > 8 bytes: Price per night (includes the currency symbol)
+    > 10 bytes: Date the room is available (format is yyyy/mm/dd)
+    > 8 bytes: Identification code of the customer who has booked the room.
+  
+STANDALONE MODE:
+  To start the application in Standalone mode run the runme.jar file using the
+  command-line argument 'alone'. A prompt will be displayed requesting the 
+  database file. If the desired database file does not appear in the text box
+  labeled 'Database Source', select the 'Browse' button. A new prompt will 
+  appear allowing the database file to be searched for. Once the database file 
+  has been found push the 'Open' button and then push the 'Ok' button. This will
+  open the main window that will allow the searching and booking of hotel rooms.
+  
+SERVER MODE:
+  To start the application in Server mode run the runme.jar file using the 
+  command-line argument 'server'. A prompt will be displayed requesting the
+  database file and port number. If the desired database file does not appear in
+  the text box labeled 'Database Source', select the 'Browse' button. A new 
+  prompt will appear allowing the database file to be searched for. Once the 
+  database file has been found push the 'Open' button. In the text field labeled
+  'Server Port' provided enter the port number the server should used for 
+  listening for clients. Only port numbers between 1024 and 65535 are acceptable 
+  values. Push the 'Start Server' button to actually start the server and push 
+  the 'Stop Server' button to stop the server.
+  
+CLIENT MODE:
+  To start the application in client mode run the runme.jar file without any
+  command-line arguments. An instance of the server application must already be
+  running. A prompt will be displayed requesting the server's IP address and 
+  port number. In the text field labeled 'Server IP Address' input the IP 
+  address of the server. This value will typically be in a format of 
+  xxx.xxx.xxx.xxx, where the 'x' represents a digit. If the server happens to be 
+  running on the local machine, the IP address can be 'localhost'. In the text 
+  field labeled 'Server Port' input the port number that was used when the 
+  server was started. This will be the port number the client uses to reach the 
+  server. Push the 'Ok' button, This will open the main window that will allow 
+  the searching and booking of hotel rooms.
+
+SEARCHING:
+  To search for hotel rooms input the criteria in the fields provided at the
+  top of the window. All searches are case sensitive. The first field indicates 
+  the name of the hotel room while the second field indicates the location of 
+  the hotel room. Once the criteria has been provided, select the 'Search' 
+  button, push ALT+R or hit the 'enter' key after inputing the criteria. 
+  
+  The table will be updated with the hotel rooms that match the specified 
+  criteria. If no criteria is specified, all hotel rooms will be displayed in
+  the table. This is also useful for refreshing the data in the table if in 
+  client mode. If only a name has been specified, then only the hotel rooms that 
+  have the same name will be displayed. If only a location has been specified, 
+  then only the hotel rooms that have the same location will be displayed. If
+  both the name and location have been specified then only the hotel rooms that 
+  have both the same name and same location will be displayed. 
+  
+BOOKING:
+  To book a hotel room, select a hotel room from the table and push the 'Book
+  Selected Room' button or push ALT+B. An 'Input' prompt will be displayed. In
+  the field provided, enter the eight digit customer identification code and 
+  push the 'Ok' button to book the room. You can push the 'Cancel' button at 
+  anytime to stop the booking process. Once the 'Ok' button has been pushed the 
+  information will be updated. 
+  
+  Once a room has been booked, it can not be booked again. In client mode, it is 
+  possible that another client has booked a room, but the information does not
+  reflect such the case on this client. In this event the application will still
+  request the eight digit customer identification code, but will not succeed and 
+  will present a message indicating so.
+  

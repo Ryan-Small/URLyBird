@@ -1,0 +1,296 @@
+
+  
+Package suncertify.db
+
+  SecurityException is a RuntimeException since it should only be thrown if 
+  there is a bug in the code, meaning that it should not be thrown in a well
+  tested application. Making it a checked exception would only result in 
+  cluttering the code by requiring that it be caught.
+  
+  DB interface was modified by adding Javadoc; the methods and their signatures
+  have not been modified. Formalizing the comments for the interface clarifies
+  the purpose of each method. It also eliminates the potential for duplicate
+  comments as implementing classes can now use the {@inheritDoc} tag.
+  
+  Data class implements the DBAdapter interface, which implements the DB 
+  interface. This approach requires the class to implement a save method, which
+  will save the data back to the database; but the main advantage is that it
+  allows us to clean up the DB interface. The DBAdapater interface modifies the
+  method signatures for the update, delete and unlock methods by removing the
+  RecordNotFoundException. Since the lock method must be called prior to these
+  methods and since it throws a RecordNotFoundException, the other methods don't
+  need to. This also allows the code that calls these methods to be cleaner 
+  since they don't have to catch these unnecessary exceptions.
+  
+  Data class doesn't throw the DuplicateKeyException in the create method since
+  there was not enough information provide to indication what they key should be 
+  based on. If there was a room number field, then a key could be create based 
+  on the hotel name, hotel city and room number, although this would have to
+  assume that there wouldn't be more than one hotel with the same name in the
+  same city.
+  
+  Data class uses a Facade pattern; RecordAccess provides access to the data and
+  the RecordLocker handles the locking and unlocking of records. The primary 
+  reason for doing this is because the DB interface requires the implementing 
+  class to handle two different responsibilities (record access and record 
+  locking), this approach allows us to break down these responsibilities into 
+  two different classes while appearing as a single class. The disadvantage of 
+  the facade is that the Data class, due to RecordAccess, can only be reused 
+  with other database files that use the same flat-file structure. This limits 
+  the reusability of the entire db package. With a little work, a Factory 
+  pattern could be implemented, to allow the Data class to be configured, with a
+  parameter perhaps, to use another type of database accessor when dealing with 
+  a different type of database format. 
+  
+  RecordAccess and RecordLocker ensures thread-safety using
+  ReentrantReadWriteLock as this provides precise controls over which sections  
+  are allowed to read and write to the critical data structures. This approach 
+  in conjunction with precise controls (readLock().lock, writeLock.lock and
+  conditions) also provides a more scalable alternative to basic 
+  synchronization. For instance, when a section of code needs to retrieve 
+  information from the data structure, a read lock is used and when a section of 
+  code needs to place information into the data structure, a write lock is used. 
+  This allows better performance as multiple reads can occur simultaneously.
+        
+  Data.find requires that each field of the record starts with (case sensitive)
+  the corresponding non-null element, specified by the criteria, in order for 
+  the record to be a match. Initial interpretations included only requiring one
+  element of criteria to match the fields of the record in order for the record 
+  to be considered a match. The reason why I decided against this approach is 
+  because it would be impossible for the user to find records that match 
+  multiple criteria simultaneously. Whereas with the approach taken, the user 
+  can do both the OR type search and the AND type search, although it requires a 
+  little bit of work. For example, the user can do the AND search by specifying
+  the name and location at the same time or they can do the OR search by doing 
+  two distinct searches; the first search specifying the name and the second 
+  search specifying the location. In short the approach taken gives the user a 
+  little more flexibility.
+  
+  RecordAccess ignores the magic cookie when reading form the database file. The
+  lack of information indicating how the value is managed makes it pointless to 
+  check it. Since the value could be automatically incremented by the 'other' 
+  application or it could be incremented if the data changes, structure changes 
+  or many other reasons. The only thing known about the value is that it 
+  identifies the data file, but that is still vague. There is no information on
+  when or why it will change and depending on it could cause issues down the 
+  road.
+  
+  RecordAccess ignores the database header when reading the database file since
+  it was assumed that the structure of the file was unlikely to change for the 
+  limited life-span of this application and since the new system may not even 
+  use this file.
+  
+  RecordAccess caches the records when the database file is read. This provides 
+  quicker access to the data (not that it would take much time anyways), reduces 
+  the number of writes to the database file (which could be costly in a 
+  networked mode with lots of clients). The disadvantage of this approach is 
+  that it is not practical/scalable if there are many records due to the memory 
+  constraint. 
+  
+  RecordAccess does not remove/override deleted records in the database file. 
+  Disk-space is cheap enough that it would be more practical to keep the data in 
+  case there is suddenly a need for it. Furthermore, it eliminates the hassle of
+  having to deal with reusing 'old' record numbers.
+  
+  RecordAccess reads the records based on the structure specified during 
+  construction. Allowing the package to be reused when reading other types of
+  records that use a different format.
+  
+  
+Package suncertify.service
+  
+  HotelServices only supports the booking, finding and saving operations as
+  these are the only operations needed to satisfy the requirements. Methods for
+  creating new records and deleting records were not listed in the requirements.
+  The problem is that it may be harder to add the new methods to the interface
+  if other classes have implemented this interface or other classes depend on 
+  it.
+
+  DefaultHotelServices.find method requires that each field equals (case 
+  sensitive) the corresponding non-null element, specified by criteria, in order
+  for the HotelRoom to be a match. Other interpretations played on what the term 
+  'exactly' means. Exactly could be referring to case and/or actual characters.
+  For example, given 'Palace' is 'palace' a match? What about 'Pal' or 'pal'. In
+  this case, the application will only match 'Palace'. The instructions, I felt,
+  implied more of a case-sensitive-equals type match. Unfortunately, I don't 
+  understand or see the use case as to why this would be desired since it would 
+  require the user to type out the entire search criteria instead of just enough 
+  to make it one of the few valid results, but in the end I implement what I 
+  interpreted from the requirements and not what I wanted. If I had the choice, 
+  I would have implemented, and did for a while, a case-insensitive-starts-with 
+  match.
+  
+  DefaultHotelServices hard-codes the offset of where the data begins in the 
+  file since it was assumed that the structure of the file was unlikely to 
+  change for the limited life-span of this application and since the new system 
+  may not even use this file. THe disadvantage of this approach is that the code
+  will need to be modified if the starting location of the data ever changes.
+  
+  HotelRoom uses an enum to identify the fields/elements returned by DB.read.
+  This makes the class a little more dynamic with its fields. As it makes it 
+  much easier to modify the structure of the record if the database file was to 
+  be modified. This also makes it easier to convert the data to and from the 
+  database file since all of the logic is located in a single class. All changes
+  to the record structure within the database need to only be applied to the 
+  enum itself. Reading and writing to the database file and the table in the GUI 
+  that displays the information are all based on this enum, allowing the 
+  structure of the record to be modified without impacting many classes. 
+  Furthermore, the addition of a new field does not require the addition of
+  getters or setters for that field since there is a single getter and setter
+  method for all of the fields.
+  
+  HotelRoom ignores the special formatting for the currency and date fields as
+  there is no reason to put formatting constraint on these fields yet since they
+  can't be modified.
+  
+  HotelRoomCriteria is just a simple transfer-object that contains a few fields.
+  Since it doesn't have any behavior and acts more like a structure, the 
+  variables are given public access.
+  
+Package suncertify.service.socket
+
+  For client to server communication, sockets were chosen in favor of RMI. The
+  primary driver for this choice was the requirement that the design must be
+  clearly understood by a junior programmer and since sockets are just POJOs
+  (plain-old-java-objects) I believe that it will be easier to follow than if
+  RMI had been used. Furthermore, due to the simplistic nature of the program 
+  RMI seems a little excessive.
+
+  A thin-client approach is used for the client-server. This approach avoids
+  tricky situations such as what if the client loses connection to the server 
+  after the client has locked a record, but before it had the chance to unlock 
+  it). This also has the advantage of making the client easier to use as it will
+  handle the locking automatically.
+
+  HotelServer synchronizes on an Object in order to prevent a simultaneous 
+  start and stop operations which could be cause by one client starting the 
+  server and another stopping it, putting it in a potentially unknown/unsafe 
+  state.
+  
+  HotelServer uses two threads for handling clients. The first thread listens 
+  for incoming connections from clients. This connection is then passed onto the
+  second thread which will handle the execution of the request made by the 
+  connection. This allows for multiple clients to be connected simultaneously.
+    
+  Using the Factory pattern, instances of ServiceRequest are created on the 
+  client side. Each instance focuses on a particular service (i.e. finding, 
+  booking or saving). The ServiceRequest is sent from the client to the server
+  where, using the Command pattern, the server will blindly invoke the execute 
+  method and send the return value back to the client. This allows new services
+  to be created without having to change the server code.
+
+Package suncertify.ui
+
+  The GridBagLayout is the primary layout for all of the GUI containers as this
+  layout provides a lot of flexibility and precision in terms of placing 
+  components.
+  
+  LocalSetupDialog and ClientSetupDialog both extend HotelServiceProviderDialog.
+  They also both create an instance of OkButtonListener, passing it a reference
+  of itself, and attaching it to button on the GUI. The OkButtonListener, when
+  invoked, will use the Template pattern to request invoke saveConfigurations,
+  dispose of the window and create a new instance of MainWindow using the 
+  HotelServices provided by getServices. This approach eliminates the 
+  redundancies that would otherwise be created by having LocalSetupDialog and 
+  ClientSetupDialog each create an instance of MainWindow. This approach does 
+  have the effect of creating an unique hierarchy of classes that will require
+  a new developer to take a few minutes to become acquainted with.
+  
+  Unlike the other two setup GUIs (localSetupDialog and ClientSetupDialog), 
+  ServerSetupWindow does not extend the HotelServiceProviderDialog, this is 
+  because it does not provide any implementation of HotelServices nor should the
+  window be disposed of. The only commonality is that the configurations need to
+  be saved an this does not warrant some complex design and is considered a 
+  reasonable compromise.
+  
+  The DatabaseBrowseListener is an ActionListener that, when invoked, will 
+  prompt the user to select the database file. This allows both the 
+  ServerSetupWindow and the LocalSetupDialog to add this listener to a button on 
+  the GUI eliminating what would otherwise be duplicate code.
+  
+  AbstractHotelRoomTableModel extends the AbstractTableModel, adding two new
+  methods. These methods allow direct access and retrieval to the underlying 
+  data. This will prevent the need to cast to and from Object.
+  
+  DefaultHotemRoomTableModel extends the AbstractHotelRoomTableModel overriding
+  many of the methods. It provides information about the hotel rooms using the
+  HotelRoom.Field. This allows the columns and values to be returned without 
+  hard-coding any values or indexes. This solution is flexible enough to handle
+  the addition or removal of new fields/columns.
+  
+  The MainWindow has two main sections the first section is for searching. It 
+  features two text fields that allows the user to search for hotel rooms by
+  specifying the name and/or location. While these fields are focused, the user
+  can hit the 'enter' key to perform the search or the user can select the 
+  search button. The ability to preform the search by hitting the 'enter' key
+  makes it a little more convenient. The second section features a table for 
+  displaying and booking hotel rooms. This table will be updated when the user 
+  performs a search. To book a hotel room the user must select the hotel room 
+  then push the button for booking the room. All buttons have mnemonics for 
+  convenience.
+  
+Package suncertify.urlybird
+
+  ApplicationRunner adjusts the look-and-feel to match that of the system. This
+  will make the application seem more native and natural for the user if they 
+  are use to the system itself.
+  
+  Configurations encapsulates the application's configurations behind an enum. 
+  This enum provides a single constructor that requires each enum to specify the
+  default value the configuration represents. This allows a new configuration to 
+  be added simply by creating a new enum and no changes need to be made in order
+  for the value to be loaded, saved or made available. The default value will be
+  used until a new value is specified.
+ 
+  Configurations class synchronizes on the PROPERTIES_FILE in order to prevent
+  simultaneous loading and saving operations which could cause data corruption.
+  
+  
+Miscellaneous
+
+  All classes and their variables and methods are given the least amount of 
+  visibility as possible since, obviously, it is easier to increase the 
+  visibility than to decrease. Furthermore, it prevents classes from 
+  establishing a dependency that are not intended to be depended on.
+  
+  Anonymous inner classes do not generally have Javadoc as the Javadoc tool does
+  not document them. Where appropriate it is mentioned in the outer class. e.g.
+  DatabaseBrowseListener, although not anonymous, does mention the inner class 
+  used for filtering.
+  
+  The 48 hour rule was not implemented as it was not a must requirement. The
+  database itself contains older data which would essentially render the 
+  application useless until new data was added.
+  
+  This application does not use a logger, however in a real-world application it
+  would be highly recommended. There are some exceptions that are thrown in this
+  application that do not warrant notifying the user, but would be beneficial to
+  a developer. 
+  
+  The userguide.txt does not contain an 'Errors' section that would list of the
+  various errors that the user may encounter. Originally this section was 
+  included in document, but after listing the errors it became very apparent 
+  that the section was not adding any value as the error message are descriptive 
+  enough for the user to determine a solution. For example, if the user provides
+  an invalid port number, the message 'Port must be between 1024 and 65535' will
+  be displayed telling the user how to solve the problem. Placing this 
+  information within the documentation would have been redundant and carry the
+  possibility not being updated.
+  
+  ActionListeners execute operations on the event dispatch thread. Most 
+  operations are quick enough to not be noticed. The potentially longest event
+  (a client attempting to connect to an IP address that isn't available) is 
+  noticeable. The decision to not execute the operations on a separate thread is
+  largely for simplicity. Executing the operation on a separate thread would
+  require that all GUI elements get disabled until the operation has been 
+  completed. Furthermore, the IP address is saved upon a successful connection.
+  As long as the location of the server doesn't change this event likely won't
+  occur.
+  
+  The application will automatically request a save when an instance of the
+  MainWindow is shutdown (regardless if it is using the local or client mode) 
+  and when the ServerSetupWindow is shutdown. These automatic saves eliminate 
+  the need for a user to manually request the data to be saved. The save 
+  operations are requested when either window is closed for the sake of ensuring 
+  the changes were saved regardless of which window closes first.
+  
